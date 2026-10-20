@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Spline 3D WebGL Viewport</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #060608;
+      background: radial-gradient(circle at 50% 50%, #0E0E14 0%, #060608 100%);
+      font-family: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, monospace;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #canvas3d {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      touch-action: none;
+    }
+
+    /* Fallback Screen for WebGL Context Loss / Reduced Motion */
+    #fallbackPoster {
+      display: none;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      color: #9496A1;
+      text-align: center;
+      padding: 24px;
+      background: radial-gradient(circle at 50% 50%, #121218 0%, #060608 100%);
+      z-index: 5;
+    }
+
+    #fallbackPoster .glyph-box {
+      width: 72px;
+      height: 72px;
+      border: 1px solid rgba(212, 255, 0, 0.4);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #D4FF00;
+      font-size: 28px;
+      box-shadow: 0 0 24px rgba(212, 255, 0, 0.2);
+    }
+
+    #fallbackPoster h3 {
+      color: #FFFFFF;
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    #fallbackPoster p {
+      font-size: 0.85rem;
+      max-width: 340px;
+      line-height: 1.6;
+    }
+
+    /* Obsidian Preloader with Monospace Counter */
+    #loaderOverlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background-color: #060608;
+      z-index: 10;
+      transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .loader-hud {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-top-color: #D4FF00;
+      border-radius: 50%;
+      animation: spin 0.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    }
+
+    .loader-counter {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8125rem;
+      color: #D4FF00;
+      letter-spacing: 0.1em;
+    }
+
+    .loader-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6875rem;
+      color: #9496A1;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Obsidian Preloader -->
+  <div id="loaderOverlay" role="status" aria-live="polite" aria-label="Loading Spline 3D Scene">
+    <div class="loader-hud">
+      <div class="spinner" aria-hidden="true"></div>
+      <div id="preloaderPercent" class="loader-counter">0%</div>
+      <div class="loader-label">ORCHESTRATING WEBGL GEOMETRY</div>
+    </div>
+  </div>
+
+  <!-- Fallback Screen -->
+  <div id="fallbackPoster" role="alert" aria-live="polite">
+    <div class="glyph-box">&Delta;</div>
+    <h3>Hardware Acceleration Standby</h3>
+    <p>Reduced motion active or WebGL rendering paused. High-fidelity static dark obsidian frame engaged.</p>
+  </div>
+
+  <!-- 3D Canvas -->
+  <canvas id="canvas3d"></canvas>
+
+  <script type="module">
+    import { Application } from 'https://unpkg.com/@splinetool/runtime@1.9.72/build/runtime.js';
+
+    // Application State & Telemetry Matrix
+    const state = {
+      app: null,
+      targetProgress: 0.0,
+      currentProgress: 0.0,
+      targetRotationY: 0.0,
+      currentRotationY: 0.0,
+      targetRotationX: 0.0,
+      currentRotationX: 0.0,
+      targetCameraZ: 1000,
+      currentCameraZ: 1000,
+      targetCameraScale: 1.0,
+      currentCameraScale: 1.0,
+      currentStage: 'STAGE_1_HERO',
+      isReducedMotion: false,
+      isSceneLoaded: false,
+      frameCount: 0,
+      lastFpsCheck: performance.now(),
+      lastTelemetryDispatch: 0,
+      fps: 60
+    };
+
+    const canvas = document.getElementById('canvas3d');
+    const loader = document.getElementById('loaderOverlay');
+    const preloaderPercent = document.getElementById('preloaderPercent');
+    const fallback = document.getElementById('fallbackPoster');
+
+    /**
+     * WebGL 2.0 / 1.0 Capability Detection
+     */
+    function isWebGLAvailable() {
+      try {
+        const testCanvas = document.createElement('canvas');
+        return Boolean(window.WebGLRenderingContext && (
+          testCanvas.getContext('webgl2') || testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')
+        ));
+      } catch (e) {
+        return false;
+      }
+    }
+
+    /**
+     * Spring Damping Interpolation (Lerp)
+     */
+    function lerp(start, end, factor) {
+      return start + (end - start) * factor;
+    }
+
+    /**
+     * Clamp helper
+     */
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+
+    /**
+     * Smooth Preloader Percentage Sequencer
+     */
+    function startPreloaderCounter() {
+      let currentPct = 0;
+      const interval = setInterval(() => {
+        if (state.isSceneLoaded) {
+          currentPct = 100;
+          if (preloaderPercent) preloaderPercent.textContent = '100%';
+          clearInterval(interval);
+          setTimeout(hideLoader, 250);
+        } else {
+          currentPct += Math.floor(Math.random() * 12) + 4;
+          if (currentPct > 94) currentPct = 94; // Hold at 94% until scene fully resolves
+          if (preloaderPercent) preloaderPercent.textContent = `${currentPct}%`;
+        }
+      }, 70);
+    }
+
+    /**
+     * Initialize Spline 3D Scene
+     */
+    async function initSpline() {
+      startPreloaderCounter();
+
+      // Check reduced motion upfront
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        state.isReducedMotion = true;
+      }
+
+      if (!isWebGLAvailable()) {
+        showFallback();
+        return;
+      }
+
+      try {
+        const app = new Application(canvas);
+        state.app = app;
+
+        // Procedural dark obsidian generative scene
+        await app.load('https://prod.spline.design/6Wq1Q7YGyM-iab9i/scene.splinecode');
+
+        state.isSceneLoaded = true;
+
+        // Broadcast readiness to host Velo container
+        dispatchParentMessage({
+          type: 'SCENE_READY',
+          payload: {
+            reducedMotion: state.isReducedMotion,
+            timestamp: performance.now()
+          }
+        });
+
+        // Start 60fps render loop
+        requestAnimationFrame(renderLoop);
+      } catch (error) {
+        console.warn('[Spline Runtime] Fallback engaged:', error);
+        showFallback();
+      }
+    }
+
+    /**
+     * 60fps Kinetic Render & Lerp Loop with Geometry Clamping
+     */
+    function renderLoop(now) {
+      state.frameCount++;
+
+      // Sample FPS once per second
+      if (now - state.lastFpsCheck >= 1000) {
+        state.fps = Math.round((state.frameCount * 1000) / (now - state.lastFpsCheck));
+        state.frameCount = 0;
+        state.lastFpsCheck = now;
+
+        dispatchParentMessage({
+          type: 'FPS_TELEMETRY',
+          fps: state.fps
+        });
+      }
+
+      if (state.app && state.isSceneLoaded) {
+        if (state.isReducedMotion) {
+          // Freeze animation to pristine hero angle
+          state.currentProgress = 0.0;
+          state.currentRotationY = 0.25;
+          state.currentRotationX = 0.05;
+          state.currentCameraZ = 1000;
+          state.currentCameraScale = 1.0;
+        } else {
+          // 60FPS Spring Damping with strict bounds clamping
+          const LERP_FACTOR = 0.06;
+          state.currentProgress = lerp(state.currentProgress, state.targetProgress, LERP_FACTOR);
+          state.currentRotationY = lerp(state.currentRotationY, state.targetRotationY, LERP_FACTOR);
+          state.currentRotationX = lerp(state.currentRotationX, state.targetRotationX, LERP_FACTOR);
+          state.currentCameraZ = lerp(state.currentCameraZ, state.targetCameraZ, LERP_FACTOR);
+          state.currentCameraScale = lerp(state.currentCameraScale, state.targetCameraScale, LERP_FACTOR);
+        }
+
+        // Apply clamped transformations to Spline scene
+        try {
+          if (typeof state.app.setVariable === 'function') {
+            state.app.setVariable('scrollProgress', state.currentProgress);
+            state.app.setVariable('orbitRotation', state.currentRotationY);
+            state.app.setVariable('cameraScale', state.currentCameraScale);
+          }
+
+          const camera = state.app.findObjectByName('Camera') || state.app.camera;
+          if (camera && camera.rotation) {
+            camera.rotation.y = state.currentRotationY;
+            camera.rotation.x = state.currentRotationX;
+          }
+        } catch (e) {
+          // Non-blocking scene traversal fallback
+        }
+
+        // Throttled coordinate telemetry dispatch to HUD
+        if (now - state.lastTelemetryDispatch >= 50) {
+          state.lastTelemetryDispatch = now;
+
+          const coordX = (Math.sin(state.currentRotationY) * 420).toFixed(1);
+          const coordY = (-state.currentProgress * 280).toFixed(1);
+          const coordZ = state.currentCameraZ.toFixed(1);
+
+          dispatchParentMessage({
+            type: 'COORDINATE_TELEMETRY',
+            coordinates: {
+              x: Number(coordX),
+              y: Number(coordY),
+              z: Number(coordZ),
+              scale: Number(state.currentCameraScale.toFixed(2)),
+              progress: Number(state.currentProgress.toFixed(3)),
+              stage: state.currentStage
+            }
+          });
+        }
+      }
+
+      requestAnimationFrame(renderLoop);
+    }
+
+    /**
+     * postMessage Receiver from Velo (Home.js) with Bounds Clamping
+     */
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (!data || !data.type) return;
+
+      switch (data.type) {
+        case 'SCROLL_PROGRESS': {
+          const rawProgress = Math.max(0.0, Math.min(1.0, data.progress || 0));
+          state.targetProgress = rawProgress;
+          state.currentStage = data.stage || 'STAGE_1_HERO';
+
+          // Safe bounded camera rotation (clamped to prevent scene inversion)
+          const rawRotY = rawProgress * Math.PI;
+          state.targetRotationY = clamp(rawRotY, -0.2, Math.PI + 0.2);
+
+          const rawRotX = Math.sin(rawProgress * Math.PI) * 0.25;
+          state.targetRotationX = clamp(rawRotX, -0.35, 0.35);
+
+          // Clamped camera distance Z & scale to prevent near-clipping
+          if (data.stage === 'STAGE_2_EXPLODED') {
+            state.targetCameraZ = clamp(1380, 750, 1500);
+            state.targetCameraScale = clamp(1.15, 0.85, 1.25);
+          } else if (data.stage === 'STAGE_3_SPEC') {
+            state.targetCameraZ = clamp(820, 750, 1500);
+            state.targetCameraScale = clamp(0.95, 0.85, 1.25);
+          } else {
+            state.targetCameraZ = 1000;
+            state.targetCameraScale = 1.0;
+          }
+          break;
+        }
+
+        case 'SET_REDUCED_MOTION': {
+          state.isReducedMotion = Boolean(data.active);
+          break;
+        }
+
+        case 'PING': {
+          dispatchParentMessage({ type: 'PONG', timestamp: performance.now() });
+          break;
+        }
+
+        default:
+          break;
+      }
+    });
+
+    /**
+     * Dispatch structured postMessage back to Wix host
+     */
+    function dispatchParentMessage(message) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(message, '*');
+      }
+    }
+
+    function hideLoader() {
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(() => {
+          loader.style.visibility = 'hidden';
+          loader.style.display = 'none';
+        }, 650);
+      }
+    }
+
+    function showFallback() {
+      if (loader) loader.style.display = 'none';
+      if (canvas) canvas.style.display = 'none';
+      if (fallback) fallback.style.display = 'flex';
+      dispatchParentMessage({ type: 'FALLBACK_ENGAGED' });
+    }
+
+    window.addEventListener('DOMContentLoaded', initSpline);
+  </script>
+</body>
+</html>
