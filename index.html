@@ -1327,17 +1327,18 @@
       requestAnimationFrame(renderLoop);
     }
 
-    // Scroll Synchronization for the 300vh Runway
-    window.addEventListener('scroll', () => {
+    // Unified Scroll Synchronization Engine (Handles both Standalone and Parent Window PostMessage)
+    function updateScrollProgress(currentScrollY) {
       const runway = document.getElementById('kineticRunwayStage');
       if (!runway) return;
 
-      const rect = runway.getBoundingClientRect();
-      const totalTravel = rect.height - window.innerHeight;
+      const runwayOffsetTop = runway.offsetTop;
+      const runwayHeight = runway.offsetHeight;
+      const travelDistance = runwayHeight - window.innerHeight;
 
-      if (totalTravel > 0) {
-        const rawProg = -rect.top / totalTravel;
-        const progress = Math.max(0, Math.min(1, rawProg));
+      if (travelDistance > 0) {
+        const relativeScroll = currentScrollY - runwayOffsetTop;
+        const progress = Math.max(0, Math.min(1, relativeScroll / travelDistance));
         targetProgress = progress;
         targetRotY = progress * Math.PI;
 
@@ -1371,6 +1372,23 @@
           milestone3?.classList.add('active');
         }
       }
+    }
+
+    // Listen for parent frame scroll events
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (!data) return;
+      if (data.type === 'PARENT_SCROLL' && typeof data.scrollY === 'number') {
+        updateScrollProgress(data.scrollY);
+      } else if (data.type === 'SCROLL_PROGRESS' && typeof data.progress === 'number') {
+        targetProgress = data.progress;
+        targetRotY = data.progress * Math.PI;
+      }
+    });
+
+    // Standalone fallback scroll listener
+    window.addEventListener('scroll', () => {
+      updateScrollProgress(window.scrollY);
     }, { passive: true });
 
     // Handle Top navigation and external routing
