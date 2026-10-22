@@ -6,6 +6,10 @@
  */
 (function() {
   function mountObsidianArchitecture() {
+    const defaultFooter = document.getElementById("comp-kbgakxmn") || document.querySelector("footer");
+    if (defaultFooter) {
+      defaultFooter.style.display = "none";
+    }
     const main = document.getElementById("PAGE_SECTIONSc1dmp");
     if (!main) return;
 
