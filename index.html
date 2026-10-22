@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Spline 3D WebGL Viewport</title>
+  <title>Obsidian Kinetic - Spline 3D Spatial Architecture</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
   <style>
     * {
       box-sizing: border-box;
@@ -17,16 +20,29 @@
       overflow: hidden;
       background-color: #060608;
       background: radial-gradient(circle at 50% 50%, #0E0E14 0%, #060608 100%);
-      font-family: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, monospace;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #FFFFFF;
       user-select: none;
       -webkit-user-select: none;
     }
 
     #canvas3d {
+      position: absolute;
+      inset: 0;
       width: 100% !important;
       height: 100% !important;
       display: block;
       touch-action: none;
+      z-index: 1;
+    }
+
+    /* Ambient Vignette & Scanline Grid */
+    .viewport-overlay-fx {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      background: radial-gradient(circle at 50% 50%, rgba(6, 6, 8, 0.2) 0%, rgba(6, 6, 8, 0.85) 100%);
     }
 
     /* Fallback Screen for WebGL Context Loss / Reduced Motion */
@@ -83,7 +99,7 @@
       justify-content: center;
       gap: 20px;
       background-color: #060608;
-      z-index: 10;
+      z-index: 30;
       transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.65s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -121,6 +137,213 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* ==========================================================================
+       HERO TEXT OVERLAY (z-index: 10)
+       ========================================================================== */
+    #heroOverlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 0 24px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .hero-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      max-width: 960px;
+      width: 100%;
+    }
+
+    /* Monospace Category Pill */
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #D4FF00;
+      background: rgba(212, 255, 0, 0.08);
+      border: 1px solid rgba(212, 255, 0, 0.28);
+      border-radius: 9999px;
+      padding: 7px 18px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 0 20px rgba(212, 255, 0, 0.12);
+      pointer-events: auto;
+    }
+
+    .hero-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: #D4FF00;
+      box-shadow: 0 0 8px #D4FF00;
+      animation: pulse-dot 2s infinite ease-in-out;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Display Headline */
+    .hero-headline {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.5rem, 1.8rem + 3.8vw, 4.75rem);
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      text-shadow: 0 4px 32px rgba(0, 0, 0, 0.9);
+      pointer-events: auto;
+    }
+
+    /* Subheadline */
+    .hero-subheadline {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: clamp(0.9375rem, 0.88rem + 0.3vw, 1.0625rem);
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.72);
+      max-width: 540px;
+      line-height: 1.65;
+      margin-bottom: 36px;
+      text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8);
+      pointer-events: auto;
+    }
+
+    /* Button Row */
+    .hero-actions {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      pointer-events: auto;
+    }
+
+    .hero-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 14px 28px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .hero-btn-primary {
+      background-color: #D4FF00;
+      color: #060608;
+      border: 1px solid #D4FF00;
+      box-shadow: 0 0 24px rgba(212, 255, 0, 0.35);
+    }
+
+    .hero-btn-primary:hover {
+      background-color: #B8DE00;
+      border-color: #B8DE00;
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 0 36px rgba(212, 255, 0, 0.55);
+    }
+
+    .hero-btn-secondary {
+      background-color: rgba(18, 18, 24, 0.6);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .hero-btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+      border-color: #FFFFFF;
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 0 24px rgba(255, 255, 255, 0.2);
+    }
+
+    /* ==========================================================================
+       SPATIAL TELEMETRY HUD (z-index: 15)
+       ========================================================================== */
+    .hud-element {
+      position: absolute;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      color: #9496A1;
+      z-index: 15;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: rgba(18, 18, 24, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .hud-top-left {
+      top: 24px;
+      left: 24px;
+    }
+
+    .hud-top-right {
+      top: 24px;
+      right: 24px;
+    }
+
+    .hud-bottom-left {
+      bottom: 24px;
+      left: 24px;
+    }
+
+    .hud-bottom-right {
+      bottom: 24px;
+      right: 24px;
+    }
+
+    .hud-val-volt {
+      color: #D4FF00;
+      font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+      .hero-headline {
+        font-size: 2.25rem;
+      }
+      .hero-actions {
+        flex-direction: column;
+        width: 100%;
+        max-width: 320px;
+      }
+      .hero-btn {
+        width: 100%;
+      }
+      .hud-element {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -140,6 +363,53 @@
     <h3>Hardware Acceleration Standby</h3>
     <p>Reduced motion active or WebGL rendering paused. High-fidelity static dark obsidian frame engaged.</p>
   </div>
+
+  <!-- Ambient Vignette Layer -->
+  <div class="viewport-overlay-fx" aria-hidden="true"></div>
+
+  <!-- Hero Content Layer (z-index: 10) -->
+  <header id="heroOverlay">
+    <div class="hero-content">
+      <div class="hero-pill">
+        <span class="hero-pill-dot" aria-hidden="true"></span>
+        <span>OBSIDIAN KINETIC // 3D SPATIAL ARCHITECTURE</span>
+      </div>
+
+      <h1 class="hero-headline">ENGINEERING VISUAL VELOCITY</h1>
+
+      <p class="hero-subheadline">Bespoke 3D interactive design systems and spatial interfaces for forward-thinking digital brands.</p>
+
+      <div class="hero-actions">
+        <button id="btnHeroBook" class="hero-btn hero-btn-primary" type="button" aria-label="Book Call 01">
+          BOOK CALL // 01
+        </button>
+        <button id="btnHeroExplore" class="hero-btn hero-btn-secondary" type="button" aria-label="Explore Work 02">
+          EXPLORE WORK // 02
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Telemetry HUD Layer -->
+  <aside class="hud-element hud-top-left" aria-label="FPS Telemetry">
+    <span>SYSTEM:</span>
+    <span id="hudFpsBadge" class="hud-val-volt">60 FPS</span>
+  </aside>
+
+  <aside class="hud-element hud-top-right" aria-label="Reticle Telemetry">
+    <span>RETICLE:</span>
+    <span id="hudCoordsBadge" class="hud-val-volt">X: 0.0 Y: 0.0 Z: 1000.0</span>
+  </aside>
+
+  <aside class="hud-element hud-bottom-left" aria-label="Kinetic Stage">
+    <span>STAGE:</span>
+    <span id="hudStageBadge" class="hud-val-volt">01 // HERO ARCHITECTURE</span>
+  </aside>
+
+  <aside class="hud-element hud-bottom-right" aria-label="Design System Compliance">
+    <span>STANDARD:</span>
+    <span class="hud-val-volt">WCAG 2.1 AA COMPLIANT</span>
+  </aside>
 
   <!-- 3D Canvas -->
   <canvas id="canvas3d"></canvas>
@@ -173,6 +443,41 @@
     const loader = document.getElementById('loaderOverlay');
     const preloaderPercent = document.getElementById('preloaderPercent');
     const fallback = document.getElementById('fallbackPoster');
+    const hudFps = document.getElementById('hudFpsBadge');
+    const hudCoords = document.getElementById('hudCoordsBadge');
+    const hudStage = document.getElementById('hudStageBadge');
+    const btnHeroBook = document.getElementById('btnHeroBook');
+    const btnHeroExplore = document.getElementById('btnHeroExplore');
+
+    /**
+     * Button Actions Wire-up (communicates to Wix Host)
+     */
+    if (btnHeroBook) {
+      btnHeroBook.addEventListener('click', () => {
+        dispatchParentMessage({ type: 'NAVIGATE', url: '/contact', targetId: 'btnBookCall' });
+        try {
+          if (window.top && window.top !== window) {
+            window.top.location.href = '/contact';
+          }
+        } catch(e) {}
+      });
+    }
+
+    if (btnHeroExplore) {
+      btnHeroExplore.addEventListener('click', () => {
+        dispatchParentMessage({ type: 'SCROLL_TO_ARCHIVE', targetId: 'archiveRepeater' });
+        try {
+          if (window.top && window.top !== window) {
+            const el = window.top.document.getElementById('comp-mpe12ctc') || 
+                       window.top.document.getElementById('archiveRepeater') ||
+                       window.top.document.getElementById('comp-mvgxv8xf');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        } catch(e) {}
+      });
+    }
 
     /**
      * WebGL 2.0 / 1.0 Capability Detection
@@ -215,7 +520,7 @@
           setTimeout(hideLoader, 250);
         } else {
           currentPct += Math.floor(Math.random() * 12) + 4;
-          if (currentPct > 94) currentPct = 94; // Hold at 94% until scene fully resolves
+          if (currentPct > 94) currentPct = 94;
           if (preloaderPercent) preloaderPercent.textContent = `${currentPct}%`;
         }
       }, 70);
@@ -227,7 +532,6 @@
     async function initSpline() {
       startPreloaderCounter();
 
-      // Check reduced motion upfront
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
         state.isReducedMotion = true;
       }
@@ -246,7 +550,6 @@
 
         state.isSceneLoaded = true;
 
-        // Broadcast readiness to host Velo container
         dispatchParentMessage({
           type: 'SCENE_READY',
           payload: {
@@ -255,7 +558,6 @@
           }
         });
 
-        // Start 60fps render loop
         requestAnimationFrame(renderLoop);
       } catch (error) {
         console.warn('[Spline Runtime] Fallback engaged:', error);
@@ -269,11 +571,12 @@
     function renderLoop(now) {
       state.frameCount++;
 
-      // Sample FPS once per second
       if (now - state.lastFpsCheck >= 1000) {
         state.fps = Math.round((state.frameCount * 1000) / (now - state.lastFpsCheck));
         state.frameCount = 0;
         state.lastFpsCheck = now;
+
+        if (hudFps) hudFps.textContent = `${state.fps} FPS`;
 
         dispatchParentMessage({
           type: 'FPS_TELEMETRY',
@@ -283,14 +586,12 @@
 
       if (state.app && state.isSceneLoaded) {
         if (state.isReducedMotion) {
-          // Freeze animation to pristine hero angle
           state.currentProgress = 0.0;
           state.currentRotationY = 0.25;
           state.currentRotationX = 0.05;
           state.currentCameraZ = 1000;
           state.currentCameraScale = 1.0;
         } else {
-          // 60FPS Spring Damping with strict bounds clamping
           const LERP_FACTOR = 0.06;
           state.currentProgress = lerp(state.currentProgress, state.targetProgress, LERP_FACTOR);
           state.currentRotationY = lerp(state.currentRotationY, state.targetRotationY, LERP_FACTOR);
@@ -299,7 +600,6 @@
           state.currentCameraScale = lerp(state.currentCameraScale, state.targetCameraScale, LERP_FACTOR);
         }
 
-        // Apply clamped transformations to Spline scene
         try {
           if (typeof state.app.setVariable === 'function') {
             state.app.setVariable('scrollProgress', state.currentProgress);
@@ -312,17 +612,16 @@
             camera.rotation.y = state.currentRotationY;
             camera.rotation.x = state.currentRotationX;
           }
-        } catch (e) {
-          // Non-blocking scene traversal fallback
-        }
+        } catch (e) {}
 
-        // Throttled coordinate telemetry dispatch to HUD
         if (now - state.lastTelemetryDispatch >= 50) {
           state.lastTelemetryDispatch = now;
 
           const coordX = (Math.sin(state.currentRotationY) * 420).toFixed(1);
           const coordY = (-state.currentProgress * 280).toFixed(1);
           const coordZ = state.currentCameraZ.toFixed(1);
+
+          if (hudCoords) hudCoords.textContent = `X: ${coordX} Y: ${coordY} Z: ${coordZ}`;
 
           dispatchParentMessage({
             type: 'COORDINATE_TELEMETRY',
@@ -342,7 +641,7 @@
     }
 
     /**
-     * postMessage Receiver from Velo (Home.js) with Bounds Clamping
+     * postMessage Receiver from Velo host
      */
     window.addEventListener('message', (event) => {
       const data = event.data;
@@ -354,14 +653,22 @@
           state.targetProgress = rawProgress;
           state.currentStage = data.stage || 'STAGE_1_HERO';
 
-          // Safe bounded camera rotation (clamped to prevent scene inversion)
+          if (hudStage) {
+            if (state.currentStage === 'STAGE_2_EXPLODED') {
+              hudStage.textContent = '02 // KINETIC CORE';
+            } else if (state.currentStage === 'STAGE_3_SPEC') {
+              hudStage.textContent = '03 // SPECIFICATIONS';
+            } else {
+              hudStage.textContent = '01 // HERO ARCHITECTURE';
+            }
+          }
+
           const rawRotY = rawProgress * Math.PI;
           state.targetRotationY = clamp(rawRotY, -0.2, Math.PI + 0.2);
 
           const rawRotX = Math.sin(rawProgress * Math.PI) * 0.25;
           state.targetRotationX = clamp(rawRotX, -0.35, 0.35);
 
-          // Clamped camera distance Z & scale to prevent near-clipping
           if (data.stage === 'STAGE_2_EXPLODED') {
             state.targetCameraZ = clamp(1380, 750, 1500);
             state.targetCameraScale = clamp(1.15, 0.85, 1.25);
@@ -390,9 +697,6 @@
       }
     });
 
-    /**
-     * Dispatch structured postMessage back to Wix host
-     */
     function dispatchParentMessage(message) {
       if (window.parent && window.parent !== window) {
         window.parent.postMessage(message, '*');
